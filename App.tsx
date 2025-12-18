@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import Wheel from './components/Wheel';
-import Confetti from './components/Confetti';
-import { WheelItem, GameState, SpinResult } from './types';
-import { audioManager } from './utils/audio';
+import Wheel from './components/Wheel.tsx';
+import Confetti from './components/Confetti.tsx';
+import { WheelItem, GameState, SpinResult } from './types.ts';
+import { audioManager } from './utils/audio.ts';
 
 // Predefined palette for nice visuals
 const COLORS = [
@@ -44,7 +44,7 @@ const App: React.FC = () => {
   };
 
   const removeItem = (id: string) => {
-    if (items.length <= 1) return; // Maintain at least one item
+    if (items.length <= 1) return; 
     setItems(items.filter(i => i.id !== id));
   };
 
@@ -131,7 +131,6 @@ const App: React.FC = () => {
             选项设置
           </h2>
 
-          {/* Manual Input Section */}
           <div className="flex gap-2 mb-6">
             <input 
               type="text"
@@ -151,7 +150,6 @@ const App: React.FC = () => {
             </button>
           </div>
 
-          {/* List of Items */}
           <div className="space-y-2 max-h-[450px] overflow-y-auto pr-2 custom-scrollbar">
             {items.length === 0 && (
               <p className="text-center text-gray-500 py-10 italic">快去添加你的第一个选项吧！</p>

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>幸运转盘 AI</title>
+    <title>幸运大转盘</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script>
@@ -52,5 +52,7 @@
 </head>
   <body class="bg-spin-dark text-white font-sans antialiased overflow-x-hidden">
     <div id="root"></div>
+    <!-- 显式引入入口文件，确保浏览器能加载 React -->
+    <script type="module" src="./index.tsx"></script>
   </body>
 </html>

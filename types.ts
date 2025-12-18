@@ -6,7 +6,6 @@ export interface WheelItem {
 
 export interface SpinResult {
   winner: WheelItem;
-  aiMessage?: string;
 }
 
 export enum GameState {

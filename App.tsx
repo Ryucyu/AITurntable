@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Wheel from './components/Wheel';
 import Confetti from './components/Confetti';
 import { WheelItem, GameState, SpinResult } from './types';
 import { audioManager } from './utils/audio';
-import { generateCreativeOptions, generateCongratulation } from './services/geminiService';
 
 // Predefined palette for nice visuals
 const COLORS = [
@@ -31,8 +30,6 @@ const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(GameState.IDLE);
   const [result, setResult] = useState<SpinResult | null>(null);
   const [shouldSpin, setShouldSpin] = useState(false);
-  const [aiPrompt, setAiPrompt] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
   const [muted, setMuted] = useState(false);
 
   const addItem = () => {
@@ -47,6 +44,7 @@ const App: React.FC = () => {
   };
 
   const removeItem = (id: string) => {
+    if (items.length <= 1) return; // Maintain at least one item
     setItems(items.filter(i => i.id !== id));
   };
 
@@ -59,45 +57,13 @@ const App: React.FC = () => {
 
   const onSpinComplete = (winner: WheelItem) => {
     audioManager.playWin();
-    
-    // Show modal immediately with loading state implicitly (aiMessage undefined)
     setResult({ winner });
     setGameState(GameState.CELEBRATING);
-    
-    // Fetch AI congratulation in background
-    generateCongratulation(winner.label).then(message => {
-      setResult(prev => {
-        // Only update if we are still showing the result for this winner
-        if (prev && prev.winner.id === winner.id) {
-          return { ...prev, aiMessage: message };
-        }
-        return prev;
-      });
-    });
   };
 
   const closeModal = () => {
     setGameState(GameState.IDLE);
     setResult(null);
-  };
-
-  const handleAiGenerate = async () => {
-    if (!aiPrompt.trim()) return;
-    setIsGenerating(true);
-    const options = await generateCreativeOptions(aiPrompt);
-    
-    // Take at most MAX_ITEMS
-    const limitedOptions = options.slice(0, MAX_ITEMS);
-    
-    const newItems = limitedOptions.map((opt, idx) => ({
-      id: `ai-${Date.now()}-${idx}`,
-      label: opt,
-      color: COLORS[idx % COLORS.length]
-    }));
-    
-    setItems(newItems);
-    setIsGenerating(false);
-    setAiPrompt('');
   };
 
   const toggleSound = () => {
@@ -114,9 +80,9 @@ const App: React.FC = () => {
       {/* Header */}
       <header className="mb-8 text-center">
         <h1 className="text-4xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-spin-accent to-purple-500 mb-2">
-          幸运转盘 AI
+          幸运大转盘
         </h1>
-        <p className="text-gray-400">做不了决定？让转盘来帮你。</p>
+        <p className="text-gray-400">纠结星人的救星，快来试试运气吧！</p>
       </header>
 
       <main className="flex flex-col lg:flex-row gap-12 w-full max-w-6xl items-start justify-center">
@@ -138,14 +104,14 @@ const App: React.FC = () => {
               onClick={handleSpinClick}
               disabled={gameState === GameState.SPINNING || items.length < 2}
               className={`
-                px-8 py-4 rounded-full text-2xl font-bold shadow-lg transform transition-all
+                px-10 py-4 rounded-full text-2xl font-bold shadow-lg transform transition-all
                 ${items.length < 2 
                   ? 'bg-gray-600 cursor-not-allowed opacity-50' 
-                  : 'bg-spin-accent hover:bg-red-600 hover:scale-105 active:scale-95'
+                  : 'bg-spin-accent hover:bg-red-600 hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(233,69,96,0.4)]'
                 }
               `}
             >
-              {gameState === GameState.SPINNING ? '旋转中...' : '开始！'}
+              {gameState === GameState.SPINNING ? '正在旋转...' : '立即开奖！'}
             </button>
 
             <button
@@ -153,71 +119,51 @@ const App: React.FC = () => {
               className="w-16 h-16 rounded-full bg-spin-light border border-gray-700 flex items-center justify-center hover:bg-gray-700 transition"
               aria-label="Toggle Sound"
             >
-              <i className={`fas ${muted ? 'fa-volume-mute' : 'fa-volume-up'} text-xl`}></i>
+              <i className={`fas ${muted ? 'fa-volume-mute' : 'fa-volume-up'} text-xl text-gray-300`}></i>
             </button>
           </div>
         </div>
 
         {/* Right Column: Controls */}
         <div className="w-full lg:w-[400px] bg-spin-light p-6 rounded-2xl shadow-xl border border-gray-800">
-          
-          {/* AI Generator Section */}
-          <div className="mb-8 p-4 bg-spin-highlight/30 rounded-xl border border-purple-500/30">
-            <div className="flex items-center gap-2 mb-3">
-              <i className="fas fa-magic text-purple-400"></i>
-              <h2 className="font-bold text-lg text-purple-200">AI 灵感生成</h2>
-            </div>
-            <div className="flex gap-2">
-              <input 
-                type="text"
-                value={aiPrompt}
-                onChange={(e) => setAiPrompt(e.target.value)}
-                placeholder="主题 (如: '晚餐', '周末活动')"
-                className="flex-1 bg-spin-dark border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-500 transition"
-              />
-              <button 
-                onClick={handleAiGenerate}
-                disabled={isGenerating || !aiPrompt.trim()}
-                className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50 whitespace-nowrap"
-              >
-                {isGenerating ? <i className="fas fa-spinner fa-spin"></i> : '生成'}
-              </button>
-            </div>
-          </div>
-
-          <div className="h-[1px] bg-gray-700 w-full mb-6"></div>
+          <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+            <i className="fas fa-list-ul text-spin-accent"></i>
+            选项设置
+          </h2>
 
           {/* Manual Input Section */}
-          <div className="flex gap-2 mb-4">
+          <div className="flex gap-2 mb-6">
             <input 
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && addItem()}
-              placeholder={isFull ? "选项已满 (最多10个)" : "手动添加选项..."}
+              placeholder={isFull ? "选项已达上限" : "输入新选项..."}
               disabled={isFull}
               className={`flex-1 bg-spin-dark border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:border-spin-accent transition ${isFull ? 'opacity-50 cursor-not-allowed' : ''}`}
             />
             <button 
               onClick={addItem}
-              disabled={isFull}
-              className={`bg-gray-700 hover:bg-gray-600 px-4 rounded-lg transition ${isFull ? 'opacity-50 cursor-not-allowed' : ''}`}
+              disabled={isFull || !inputText.trim()}
+              className={`bg-spin-accent hover:bg-red-600 text-white px-5 rounded-lg transition disabled:bg-gray-700 disabled:opacity-50`}
             >
               <i className="fas fa-plus"></i>
             </button>
           </div>
 
           {/* List of Items */}
-          <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+          <div className="space-y-2 max-h-[450px] overflow-y-auto pr-2 custom-scrollbar">
             {items.length === 0 && (
-              <p className="text-center text-gray-500 py-4">添加选项或使用 AI 开始！</p>
+              <p className="text-center text-gray-500 py-10 italic">快去添加你的第一个选项吧！</p>
             )}
             {items.map((item) => (
-              <div key={item.id} className="flex items-center justify-between bg-spin-dark p-3 rounded-lg border-l-4" style={{ borderLeftColor: item.color }}>
-                <span className="font-medium truncate pr-4">{item.label}</span>
+              <div key={item.id} className="group flex items-center justify-between bg-spin-dark p-3 rounded-lg border-l-4 transition-all hover:bg-gray-800" style={{ borderLeftColor: item.color }}>
+                <span className="font-medium truncate pr-4 text-gray-200">{item.label}</span>
                 <button 
                   onClick={() => removeItem(item.id)}
-                  className="text-gray-500 hover:text-red-400 transition"
+                  disabled={items.length <= 2}
+                  className="text-gray-600 hover:text-red-400 transition opacity-0 group-hover:opacity-100 disabled:hidden"
+                  title="删除"
                 >
                   <i className="fas fa-trash-alt"></i>
                 </button>
@@ -225,10 +171,10 @@ const App: React.FC = () => {
             ))}
           </div>
           
-          <div className="mt-4 text-right text-xs text-gray-500 flex justify-between items-center">
-            <span className="text-gray-600">最少2个，最多10个</span>
-            <span className={`${isFull ? 'text-red-400 font-bold' : ''}`}>
-              {items.length} / {MAX_ITEMS} 个选项
+          <div className="mt-6 pt-4 border-t border-gray-700 text-xs text-gray-500 flex justify-between items-center">
+            <span>最少 2 个，最多 10 个</span>
+            <span className={`${isFull ? 'text-spin-accent font-bold' : ''}`}>
+              已添加：{items.length} / {MAX_ITEMS}
             </span>
           </div>
         </div>
@@ -237,42 +183,32 @@ const App: React.FC = () => {
       {/* Winner Modal */}
       {result && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={closeModal}></div>
-          <div className="bg-spin-light p-8 rounded-3xl border-2 border-spin-accent shadow-[0_0_50px_rgba(233,69,96,0.5)] z-10 max-w-md w-full text-center relative animate-bounce-slow">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={closeModal}></div>
+          <div className="bg-spin-light p-10 rounded-3xl border-2 border-spin-accent shadow-[0_0_60px_rgba(233,69,96,0.6)] z-10 max-w-sm w-full text-center relative animate-bounce-slow">
             <button 
               onClick={closeModal}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white"
+              className="absolute top-4 right-4 text-gray-500 hover:text-white transition"
             >
               <i className="fas fa-times text-xl"></i>
             </button>
             
-            <h2 className="text-2xl text-gray-300 font-bold mb-2 uppercase tracking-widest">中奖啦</h2>
+            <div className="mb-4">
+               <i className="fas fa-crown text-yellow-500 text-5xl mb-4"></i>
+               <h2 className="text-xl text-gray-400 font-bold uppercase tracking-[0.2em]">恭喜你获得</h2>
+            </div>
+
             <div 
-              className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-400 mb-6 py-2"
-              style={{ textShadow: `0 0 30px ${result.winner.color}`}}
+              className="text-5xl font-black text-white mb-10 py-4"
+              style={{ textShadow: `0 0 20px ${result.winner.color}`}}
             >
               {result.winner.label}
             </div>
             
-            {/* AI Message Area */}
-            {result.aiMessage ? (
-               <div className="bg-white/10 p-4 rounded-xl mb-6 animate-fade-in">
-                 <p className="text-purple-200 italic">
-                   <i className="fas fa-robot mr-2"></i>
-                   "{result.aiMessage}"
-                 </p>
-               </div>
-            ) : (
-                <div className="mb-6 h-8">
-                     <p className="text-gray-500 text-xs italic animate-pulse">AI 正在思考有趣的祝福...</p>
-                </div>
-            )}
-            
             <button 
               onClick={closeModal}
-              className="bg-spin-accent hover:bg-red-600 text-white px-8 py-3 rounded-full font-bold shadow-lg transition w-full"
+              className="bg-spin-accent hover:bg-red-600 text-white px-10 py-4 rounded-full font-bold shadow-lg transition-all w-full text-lg"
             >
-              太棒了！
+              好哒！
             </button>
           </div>
         </div>
